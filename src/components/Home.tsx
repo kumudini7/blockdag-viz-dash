@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Wallet, Activity, Globe, Zap } from 'lucide-react';
+import { bdagApi } from '@/services/bdagApi';
 
 // Mock wallet connection
 const useWallet = () => {
@@ -32,27 +33,36 @@ const Home = () => {
   const { isConnected, address, balance, connect, disconnect } = useWallet();
   const [liveData, setLiveData] = useState({
     tps: 850,
-    blockHeight: 1234567,
+    blockHeight: 797519,
     gasPrice: 20,
-    activeNodes: 156
+    activeNodes: 156,
+    totalTransactions: 883125
   });
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setLiveData(prev => ({
-        tps: Math.floor(Math.random() * 200) + 750,
-        blockHeight: prev.blockHeight + Math.floor(Math.random() * 3) + 1,
-        gasPrice: Math.floor(Math.random() * 10) + 15,
-        activeNodes: Math.floor(Math.random() * 20) + 140
-      }));
-    }, 3000);
+    const fetchNetworkStats = async () => {
+      if (isConnected) {
+        try {
+          const stats = await bdagApi.getNetworkStats();
+          setLiveData(stats);
+        } catch (error) {
+          console.error('Failed to fetch network stats:', error);
+        }
+      }
+    };
+
+    // Fetch initial data
+    fetchNetworkStats();
+
+    // Update every 5 seconds
+    const interval = setInterval(fetchNetworkStats, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isConnected]);
 
   return (
     <div className="relative min-h-screen overflow-hidden">
       {/* Animated Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-muted/20">
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800">
         <div className="absolute inset-0">
           {[...Array(20)].map((_, i) => (
             <div

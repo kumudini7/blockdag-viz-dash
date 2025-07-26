@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Code, Rocket, FileText, Play, Settings, Upload, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { Code, Rocket, FileText, Play, Settings, Upload, CheckCircle, AlertCircle, Clock, ExternalLink } from 'lucide-react';
+import { bdagApi, type Contract } from '@/services/bdagApi';
 
 const mockContracts = [
   {
@@ -84,6 +85,25 @@ const SmartContractTools = () => {
   const [deploymentStatus, setDeploymentStatus] = useState<'idle' | 'deploying' | 'success' | 'error'>('idle');
   const [contractAddress, setContractAddress] = useState('');
   const [abiJson, setAbiJson] = useState('');
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [isLoadingContracts, setIsLoadingContracts] = useState(false);
+
+  useEffect(() => {
+    const fetchContracts = async () => {
+      setIsLoadingContracts(true);
+      try {
+        const realContracts = await bdagApi.getContracts();
+        setContracts(realContracts);
+      } catch (error) {
+        console.error('Failed to fetch contracts:', error);
+        setContracts([]);
+      } finally {
+        setIsLoadingContracts(false);
+      }
+    };
+
+    fetchContracts();
+  }, []);
 
   const handleTemplateSelect = (templateName: string) => {
     const template = contractTemplates.find(t => t.name === templateName);
@@ -360,10 +380,51 @@ const SmartContractTools = () => {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {mockContracts.map(contract => (
-              <DeploymentCard key={contract.id} contract={contract} />
-            ))}
+          <div className="space-y-4">
+            {isLoadingContracts ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Loading contracts from BlockDAG testnet...</p>
+              </div>
+            ) : contracts.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {contracts.map((contract, index) => (
+                  <Card key={index}>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="font-semibold">{contract.name || `Contract ${index + 1}`}</h3>
+                          <p className="text-sm text-muted-foreground font-mono">{contract.address}</p>
+                        </div>
+                        <Badge variant={contract.status === 'Fully verified' ? 'default' : 'secondary'}>
+                          {contract.status === 'Fully verified' ? (
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                          ) : (
+                            <AlertCircle className="w-3 h-3 mr-1" />
+                          )}
+                          {contract.status}
+                        </Badge>
+                      </div>
+                      <div className="flex justify-between text-sm text-muted-foreground mb-4">
+                        <span>{contract.type}</span>
+                        <span>{contract.age}</span>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm">
+                          <ExternalLink className="w-4 h-4 mr-1" />
+                          View
+                        </Button>
+                        <Button variant="outline" size="sm">Verify</Button>
+                        <Button variant="outline" size="sm">Interact</Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No contracts found on the testnet</p>
+              </div>
+            )}
           </div>
         </TabsContent>
       </Tabs>

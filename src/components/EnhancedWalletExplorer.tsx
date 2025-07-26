@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Progress } from '@/components/ui/progress';
 import { Wallet, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft, Copy, ExternalLink, RefreshCw } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { bdagApi, type Transaction } from '@/services/bdagApi';
 
 const mockWalletData = {
   address: '0x1234567890abcdef1234567890abcdef12345678',
@@ -71,6 +72,7 @@ const tokenHoldings = [
 const EnhancedWalletExplorer = () => {
   const [walletAddress, setWalletAddress] = useState('');
   const [walletData, setWalletData] = useState<any>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
 
@@ -78,12 +80,30 @@ const EnhancedWalletExplorer = () => {
     if (!walletAddress.trim()) return;
     
     setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Fetch real transaction data for the wallet
+      const walletTransactions = await bdagApi.getWalletTransactions(walletAddress);
+      setTransactions(walletTransactions);
+      
+      // Create wallet data based on actual transactions
+      const totalValue = walletTransactions.reduce((sum, tx) => {
+        const amount = parseFloat(tx.amount.replace(' BDAG', ''));
+        return sum + (isNaN(amount) ? 0 : amount);
+      }, 0);
+      
+      setWalletData({
+        ...mockWalletData,
+        address: walletAddress,
+        balance: `${totalValue.toFixed(2)} BDAG`,
+        transactions: walletTransactions.length,
+        balanceUSD: `$${(totalValue * 0.0276).toFixed(2)}`
+      });
+    } catch (error) {
+      console.error('Failed to fetch wallet data:', error);
       setWalletData(mockWalletData);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const copyToClipboard = (text: string) => {
@@ -262,12 +282,12 @@ const EnhancedWalletExplorer = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {mockTransactions.map((tx) => (
-                        <TableRow key={tx.id}>
+                      {transactions.length > 0 ? transactions.map((tx, index) => (
+                        <TableRow key={index}>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              {getTransactionIcon(tx.type)}
-                              <span className="capitalize">{tx.type}</span>
+                              {getTransactionIcon('transfer')}
+                              <span className="capitalize">{tx.events.toLowerCase()}</span>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -284,27 +304,33 @@ const EnhancedWalletExplorer = () => {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <span className={`font-mono ${tx.amount.startsWith('+') ? 'text-green-500' : 'text-red-500'}`}>
-                              {tx.amount} BDAG
+                            <span className="font-mono text-green-500">
+                              {tx.amount}
                             </span>
                           </TableCell>
                           <TableCell>
                             <span className="font-mono text-sm">
-                              {formatAddress(tx.to || tx.from || '')}
+                              {formatAddress(tx.to)}
                             </span>
                           </TableCell>
                           <TableCell>
                             <span className="text-sm text-muted-foreground">
-                              {new Date(tx.timestamp).toLocaleString()}
+                              {tx.age}
                             </span>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={tx.status === 'confirmed' ? 'default' : 'secondary'}>
-                              {tx.status}
+                            <Badge variant="default">
+                              Confirmed
                             </Badge>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )) : (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                            {isLoading ? "Loading transactions..." : "No transactions found for this wallet address"}
+                          </TableCell>
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </CardContent>
