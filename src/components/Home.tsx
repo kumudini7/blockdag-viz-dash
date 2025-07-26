@@ -62,7 +62,7 @@ const Home = () => {
   return (
     <div className="relative min-h-screen overflow-hidden">
       {/* Animated Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800">
+      <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-muted/20">
         <div className="absolute inset-0">
           {[...Array(20)].map((_, i) => (
             <div
